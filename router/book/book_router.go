@@ -4,9 +4,10 @@ import (
 	"myapp/controller/book"
 
 	"github.com/kataras/iris/v12"
+	"gorm.io/gorm"
 )
 
-func GetRoute(route *iris.Application) *iris.Application {
+func GetRoute(route *iris.Application, db *gorm.DB) *iris.Application {
 
 	booksAPI := route.Party("/books")
 	{
