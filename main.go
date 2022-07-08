@@ -6,6 +6,7 @@ import (
 	"myapp/config"
 	"myapp/router"
 	"myapp/router/book"
+	"myapp/router/classification"
 
 	"myapp/pkg/gorm"
 )
@@ -22,5 +23,6 @@ func main() {
 
 	route := router.Default()
 	route = book.GetRoute(route, db)
+	route = classification.GetRoute(route, db)
 	route.Listen(":8080")
 }
