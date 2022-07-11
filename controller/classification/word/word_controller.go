@@ -23,7 +23,7 @@ func New(db *gorm.DB) *word {
 }
 
 func (p *word) Create(ctx iris.Context) {
-	var w wordModel.UserClassificationWord
+	var w wordModel.Word
 
 	err := ctx.ReadJSON(&w)
 	// TIP: use ctx.ReadBody(&b) to bind
@@ -54,7 +54,7 @@ func (p *word) List(ctx iris.Context) {
 		ctx.JSON(response{Msg: "Input fail", Code: 500})
 	}
 
-	var w []wordModel.UserClassificationWord
+	var w []wordModel.Word
 	result := p.db.Limit(10).Offset(page - 1).Find(&w)
 	if result.Error != nil {
 		fmt.Println("List fail")
@@ -79,7 +79,7 @@ func (p *word) Update(ctx iris.Context) {
 		ctx.JSON(response{Msg: "Input fail", Code: 500})
 	}
 
-	var w wordModel.UserClassificationWord
+	var w wordModel.Word
 
 	if ctx.ReadJSON(&w) != nil {
 		ctx.StopWithProblem(iris.StatusBadRequest, iris.NewProblem().
@@ -92,7 +92,7 @@ func (p *word) Update(ctx iris.Context) {
 
 	result := p.db.
 		Model(&w).
-		Updates(wordModel.UserClassificationWord{Weight: w.Weight, Word: w.Word})
+		Updates(wordModel.Word{Weight: w.Weight, Word: w.Word})
 
 	if result.Error != nil {
 		fmt.Println("Update fail")
@@ -120,7 +120,7 @@ func (p *word) Delete(ctx iris.Context) {
 		ctx.JSON(response{Msg: "Input fail", Code: 500})
 	}
 
-	var w wordModel.UserClassificationWord
+	var w wordModel.Word
 
 	w.ID = id
 	fmt.Println(w)

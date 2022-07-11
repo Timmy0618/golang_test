@@ -23,7 +23,7 @@ func New(db *gorm.DB) *group {
 }
 
 func (p *group) Create(ctx iris.Context) {
-	var w groupModel.UserClassificationGroup
+	var w groupModel.Group
 
 	err := ctx.ReadJSON(&w)
 	if err != nil {
@@ -37,6 +37,7 @@ func (p *group) Create(ctx iris.Context) {
 		fmt.Println("Create fail")
 		ctx.StatusCode(iris.StatusBadGateway)
 		ctx.JSON(response{Msg: "Create Fail", Code: 500})
+		return
 	}
 
 	ctx.StatusCode(iris.StatusCreated)
@@ -50,7 +51,7 @@ func (p *group) List(ctx iris.Context) {
 		ctx.JSON(response{Msg: "Input fail", Code: 500})
 	}
 
-	var w []groupModel.UserClassificationGroup
+	var w []groupModel.Group
 	result := p.db.Limit(10).Offset(page - 1).Find(&w)
 	if result.Error != nil {
 		fmt.Println("List fail")
@@ -74,7 +75,7 @@ func (p *group) Update(ctx iris.Context) {
 		ctx.JSON(response{Msg: "Input fail", Code: 500})
 	}
 
-	var w groupModel.UserClassificationGroup
+	var w groupModel.Group
 
 	if ctx.ReadJSON(&w) != nil {
 		ctx.StopWithProblem(iris.StatusBadRequest, iris.NewProblem().
@@ -86,7 +87,7 @@ func (p *group) Update(ctx iris.Context) {
 
 	result := p.db.
 		Model(&w).
-		Updates(groupModel.UserClassificationGroup{Name: w.Name})
+		Updates(groupModel.Group{Name: w.Name})
 
 	if result.Error != nil {
 		fmt.Println("Update fail")
@@ -114,7 +115,7 @@ func (p *group) Delete(ctx iris.Context) {
 		ctx.JSON(response{Msg: "Input fail", Code: 500})
 	}
 
-	var w groupModel.UserClassificationGroup
+	var w groupModel.Group
 
 	w.ID = id
 	fmt.Println(w)
