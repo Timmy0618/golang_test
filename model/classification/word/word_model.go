@@ -1,4 +1,4 @@
-package classification
+package word
 
 import "time"
 

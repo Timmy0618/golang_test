@@ -1,4 +1,4 @@
-CREATE TABLE `user_classfication_groups` (
+CREATE TABLE `user_classification_groups` (
     `id` int NOT NULL AUTO_INCREMENT,
     `name` varchar(10) NOT NULL,
     `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
