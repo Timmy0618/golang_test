@@ -2,15 +2,19 @@ package word
 
 import (
 	"fmt"
+	"log"
 	wordModel "myapp/model/classification/word"
 	"strconv"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/kataras/iris/v12"
 	"gorm.io/gorm"
 )
 
 type word struct {
-	db *gorm.DB
+	db  *gorm.DB
+	rmq *amqp.Connection
 }
 
 type response struct {
@@ -18,8 +22,8 @@ type response struct {
 	Code int
 }
 
-func New(db *gorm.DB) *word {
-	return &word{db}
+func New(db *gorm.DB, rmq *amqp.Connection) *word {
+	return &word{db, rmq}
 }
 
 func (p *word) Create(ctx iris.Context) {
@@ -137,4 +141,40 @@ func (p *word) Delete(ctx iris.Context) {
 
 	ctx.StatusCode(iris.StatusAccepted)
 	ctx.JSON(response{Msg: "Delete Success", Code: 200})
+}
+
+func (p *word) RmqAdd(ctx iris.Context) {
+	ch, err := p.rmq.Channel()
+	if err != nil {
+		log.Panicf("%s: %s", "Failed to open a channel", err)
+	}
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		"hello", // name
+		false,   // durable
+		false,   // delete when unused
+		false,   // exclusive
+		false,   // no-wait
+		nil,     // arguments
+	)
+	if err != nil {
+		log.Panicf("%s: %s", "Failed to declare a queue", err)
+	}
+
+	body := "Hello World!"
+	//放進queue
+	err = ch.Publish(
+		"",     // exchange
+		q.Name, // routing key
+		false,  // mandatory
+		false,  // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(body),
+		})
+	if err != nil {
+		log.Panicf("%s: %s", "Failed to publish a message", err)
+	}
+	log.Printf(" [x] Sent %s\n", body)
 }
