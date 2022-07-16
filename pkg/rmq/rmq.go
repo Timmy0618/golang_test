@@ -12,7 +12,6 @@ func New() *amqp.Connection {
 	if err != nil {
 		log.Panicf("%s: %s", "Failed to connect to RabbitMQ", err)
 	}
-	defer conn.Close()
 	fmt.Println("RMQ 連線成功")
 
 	return conn

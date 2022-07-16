@@ -1,6 +1,7 @@
 package word
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	wordModel "myapp/model/classification/word"
@@ -49,6 +50,9 @@ func (p *word) Create(ctx iris.Context) {
 
 	ctx.StatusCode(iris.StatusCreated)
 	ctx.JSON(response{Msg: "Create Success", Code: 200})
+
+	line := fmt.Sprintf("%s input: %#v", ctx.Method(), w)
+	ctx.Application().Logger().Info(line)
 }
 
 func (p *word) List(ctx iris.Context) {
@@ -150,19 +154,34 @@ func (p *word) RmqAdd(ctx iris.Context) {
 	}
 	defer ch.Close()
 
+	var body struct {
+		UserId   int64  `json:"userId"`
+		Sentence string `json:"sentence"`
+	}
+	err = ctx.ReadJSON(&body)
+	if err != nil {
+		ctx.StopWithProblem(iris.StatusBadRequest, iris.NewProblem().
+			Title("Word Rmq failure").DetailErr(err))
+		return
+	}
+
+	body1, err := json.Marshal(body)
+	if err != nil {
+		panic(err)
+	}
+
 	q, err := ch.QueueDeclare(
-		"hello", // name
-		false,   // durable
-		false,   // delete when unused
-		false,   // exclusive
-		false,   // no-wait
-		nil,     // arguments
+		"sentence_queue", // name
+		false,            // durable
+		false,            // delete when unused
+		false,            // exclusive
+		false,            // no-wait
+		nil,              // arguments
 	)
 	if err != nil {
 		log.Panicf("%s: %s", "Failed to declare a queue", err)
 	}
 
-	body := "Hello World!"
 	//放進queue
 	err = ch.Publish(
 		"",     // exchange
@@ -170,11 +189,14 @@ func (p *word) RmqAdd(ctx iris.Context) {
 		false,  // mandatory
 		false,  // immediate
 		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte(body),
+			ContentType: "application/json",
+			Body:        []byte(body1),
 		})
 	if err != nil {
 		log.Panicf("%s: %s", "Failed to publish a message", err)
 	}
-	log.Printf(" [x] Sent %s\n", body)
+	log.Printf(" [x] Sent %s\n", body1)
+
+	ctx.StatusCode(iris.StatusAccepted)
+	ctx.JSON(response{Msg: "Rmq Add Success", Code: 200})
 }

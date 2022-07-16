@@ -1,19 +1,30 @@
-package classification
+package main
 
 import (
 	"fmt"
 	"log"
+	"myapp/config"
+	wordModel "myapp/model/classification/word"
+	"myapp/pkg/gorm"
+	"myapp/pkg/rmq"
+	"myapp/services/classification"
 
-	amqp "github.com/rabbitmq/amqp091-go"
+	"reflect"
 )
 
 func main() {
-	conn, err := amqp.Dial("amqp://admin:admin@localhost:5672/")
-	if err != nil {
-		log.Panicf("%s: %s", "Failed to connect to RabbitMQ", err)
+	config.Default()
+
+	conn := rmq.New()
+	db, _ := gorm.New()
+
+	var wordList []wordModel.Word
+	result := db.Limit(10).Offset(0).Find(&wordList)
+	if result.Error != nil {
+		fmt.Println("List fail")
+		return
 	}
-	defer conn.Close()
-	fmt.Println("RMQ 連線成功")
+	fmt.Println(wordList)
 
 	ch, err := conn.Channel()
 	if err != nil {
@@ -22,12 +33,12 @@ func main() {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"hello", // name
-		false,   // durable
-		false,   // delete when unused
-		false,   // exclusive
-		false,   // no-wait
-		nil,     // arguments
+		"sentence_queue", // name
+		false,            // durable
+		false,            // delete when unused
+		false,            // exclusive
+		false,            // no-wait
+		nil,              // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 
@@ -46,7 +57,8 @@ func main() {
 
 	go func() {
 		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
+			log.Printf("Received a message: %s", reflect.TypeOf(d.Body))
+			classification.Classify(d.Body, wordList)
 		}
 	}()
 
