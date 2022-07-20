@@ -4,8 +4,8 @@ import (
 	"log"
 	"myapp/config"
 	logger "myapp/pkg/log"
+	"myapp/pkg/rmq"
 	"myapp/router"
-	"myapp/router/book"
 	"myapp/router/classification/group"
 	"myapp/router/classification/word"
 
@@ -24,14 +24,16 @@ func main() {
 	//設定logger
 	route.Logger().SetOutput(f)
 
+	//設定rmq
+	rmq := rmq.New()
+
 	db, err := gorm.New()
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 
-	route = book.GetRoute(route, db)
-	route = word.GetRoute(route, db)
+	route = word.GetRoute(route, db, rmq)
 	route = group.GetRoute(route, db)
 	route.Listen(":8080")
 }
