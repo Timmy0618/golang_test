@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  # app:
+  #   build:
+  #     context: ./
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8081:8080"
+  #   depends_on:
+  #     - Database
+  #   entrypoint: go run main.go
+  #   restart: always
+
+  rabbitmq:
+    image: rabbitmq:latest
+    environment:
+      - RABBITMQ_DEFAULT_VHOST=/
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+      - RABBITMQ_ERLANG_COOKIE=test
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  Database:
+    image: mysql/mysql-server:latest
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: 1qaz@WSX3edc
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin
+    volumes:
+      - ./mysql:/var/lib/mysql
+
+  DbManager:
+    image: phpmyadmin:latest
+    restart: unless-stopped
+    ports:
+      - "8083:80"
+    depends_on:
+      - Database
+    links:
+      - Database
+    environment:
+      PMA_HOST: Database
+      PMA_PORT: 3306
