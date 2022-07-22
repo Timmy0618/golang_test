@@ -26,6 +26,7 @@ func Classify(input []byte, wordList []wordModel.Word) {
 			fmt.Println(word.Word)
 			fmt.Println(sentence.UserId)
 			fmt.Println(sentence.Sentence)
+			return
 		} else {
 			fmt.Println("未比對到")
 			fmt.Println(word.Word)

@@ -4,6 +4,7 @@ import (
 	"log"
 	"myapp/config"
 	logger "myapp/pkg/log"
+	"myapp/pkg/redis"
 	"myapp/pkg/rmq"
 	"myapp/router"
 	"myapp/router/classification/group"
@@ -13,6 +14,7 @@ import (
 )
 
 func main() {
+	//讀取config
 	config.Default()
 
 	route := router.Default()
@@ -26,14 +28,20 @@ func main() {
 
 	//設定rmq
 	rmq := rmq.New()
+	defer rmq.Close()
 
+	//設定redis
+	rdb := redis.Default()
+	defer rdb.Close()
+
+	//db連線
 	db, err := gorm.New()
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 
-	route = word.GetRoute(route, db, rmq)
+	route = word.GetRoute(route, db, rmq, rdb)
 	route = group.GetRoute(route, db)
 	route.Listen(":8080")
 }

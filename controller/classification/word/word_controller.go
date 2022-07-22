@@ -5,8 +5,12 @@ import (
 	"fmt"
 	"log"
 	wordModel "myapp/model/classification/word"
+	redisService "myapp/services/redis"
+	"myapp/services/response"
+	"myapp/services/rmq"
 	"strconv"
 
+	"github.com/go-redis/redis/v9"
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/kataras/iris/v12"
@@ -16,28 +20,20 @@ import (
 type word struct {
 	db  *gorm.DB
 	rmq *amqp.Connection
+	rdb *redis.Client
 }
 
-type response struct {
-	Msg  string
-	Code int
-}
-
-func New(db *gorm.DB, rmq *amqp.Connection) *word {
-	return &word{db, rmq}
+func New(db *gorm.DB, rmq *amqp.Connection, rdb *redis.Client) *word {
+	return &word{db, rmq, rdb}
 }
 
 func (p *word) Create(ctx iris.Context) {
 	var w wordModel.Word
 
 	err := ctx.ReadJSON(&w)
-	// TIP: use ctx.ReadBody(&b) to bind
-	// any type of incoming data instead.
 	if err != nil {
 		ctx.StopWithProblem(iris.StatusBadRequest, iris.NewProblem().
-			Title("Word creation failure").DetailErr(err))
-		// TIP: use ctx.StopWithError(code, err) when only
-		// plain text responses are expected on errors.
+			Title("Input Fail").DetailErr(err))
 		return
 	}
 
@@ -45,11 +41,18 @@ func (p *word) Create(ctx iris.Context) {
 	if result.Error != nil {
 		fmt.Println("Create fail")
 		ctx.StatusCode(iris.StatusBadGateway)
-		ctx.JSON(response{Msg: "Create Fail", Code: 500})
+		ctx.JSON(response.Responser(500, "Create Fail"))
+		ctx.StopWithProblem(iris.StatusBadGateway, iris.NewProblem().
+			Title("Word creation failure").DetailErr(err))
+		return
+	}
+
+	if redisService.Scan(p.rdb, "wordList") {
+		redisService.Del(p.rdb, "wordList")
 	}
 
 	ctx.StatusCode(iris.StatusCreated)
-	ctx.JSON(response{Msg: "Create Success", Code: 200})
+	ctx.JSON(response.Responser(200, "Created Success"))
 
 	line := fmt.Sprintf("%s input: %#v", ctx.Method(), w)
 	ctx.Application().Logger().Info(line)
@@ -59,20 +62,20 @@ func (p *word) List(ctx iris.Context) {
 	page, err := strconv.Atoi(ctx.Params().Get("page"))
 	if err != nil {
 		fmt.Println("Input fail")
-		ctx.JSON(response{Msg: "Input fail", Code: 500})
+		ctx.JSON(response.Responser(500, "Input Fail"))
+		return
 	}
 
 	var w []wordModel.Word
 	result := p.db.Limit(10).Offset(page - 1).Find(&w)
 	if result.Error != nil {
 		fmt.Println("List fail")
-		// ctx.StatusCode(iris.StatusBadGateway)
-		ctx.JSON(response{Msg: "List fail", Code: 500})
+		ctx.StatusCode(iris.StatusBadGateway)
+		ctx.JSON(response.Responser(500, "Input fail"))
+		return
 	}
 	ctx.StatusCode(iris.StatusAccepted)
-	fmt.Println(w)
-
-	ctx.JSON(w)
+	ctx.JSON(response.Responser(200, "Success", w))
 }
 
 func (p *word) Read(ctx iris.Context) {
@@ -84,14 +87,15 @@ func (p *word) Update(ctx iris.Context) {
 
 	if err != nil {
 		fmt.Println("Input fail")
-		ctx.JSON(response{Msg: "Input fail", Code: 500})
+		ctx.JSON(response.Responser(500, "Input fail"))
+		return
 	}
 
 	var w wordModel.Word
 
 	if ctx.ReadJSON(&w) != nil {
 		ctx.StopWithProblem(iris.StatusBadRequest, iris.NewProblem().
-			Title("Word Update failure").DetailErr(err))
+			Title("Input fail").DetailErr(err))
 		return
 	}
 
@@ -105,19 +109,18 @@ func (p *word) Update(ctx iris.Context) {
 	if result.Error != nil {
 		fmt.Println("Update fail")
 		ctx.StatusCode(iris.StatusBadGateway)
-		ctx.JSON(response{Msg: "Update fail", Code: 500})
+		ctx.JSON(response.Responser(500, "Update fail"))
 		return
 	}
 
 	if result.RowsAffected < 1 {
-		fmt.Println("Update fail")
 		ctx.StatusCode(iris.StatusAccepted)
-		ctx.JSON(response{Msg: "Update Nothing", Code: 200})
+		ctx.JSON(response.Responser(200, "Nothing Change"))
 		return
 	}
 
 	ctx.StatusCode(iris.StatusAccepted)
-	ctx.JSON(response{Msg: "Update Success", Code: 200})
+	ctx.JSON(response.Responser(200, "Update Success"))
 }
 
 func (p *word) Delete(ctx iris.Context) {
@@ -125,7 +128,7 @@ func (p *word) Delete(ctx iris.Context) {
 
 	if err != nil {
 		fmt.Println("Input fail")
-		ctx.JSON(response{Msg: "Input fail", Code: 500})
+		ctx.JSON(response.Responser(500, "Input fail"))
 	}
 
 	var w wordModel.Word
@@ -139,26 +142,20 @@ func (p *word) Delete(ctx iris.Context) {
 	if result.Error != nil {
 		fmt.Println("Delete fail")
 		ctx.StatusCode(iris.StatusBadGateway)
-		ctx.JSON(response{Msg: "Delete fail", Code: 500})
+		ctx.JSON(response.Responser(500, "Input fail"))
 		return
 	}
 
 	ctx.StatusCode(iris.StatusAccepted)
-	ctx.JSON(response{Msg: "Delete Success", Code: 200})
+	ctx.JSON(response.Responser(200, "Delete Success"))
 }
 
 func (p *word) RmqAdd(ctx iris.Context) {
-	ch, err := p.rmq.Channel()
-	if err != nil {
-		log.Panicf("%s: %s", "Failed to open a channel", err)
-	}
-	defer ch.Close()
-
 	var body struct {
 		UserId   int64  `json:"userId"`
 		Sentence string `json:"sentence"`
 	}
-	err = ctx.ReadJSON(&body)
+	err := ctx.ReadJSON(&body)
 	if err != nil {
 		ctx.StopWithProblem(iris.StatusBadRequest, iris.NewProblem().
 			Title("Word Rmq failure").DetailErr(err))
@@ -169,34 +166,9 @@ func (p *word) RmqAdd(ctx iris.Context) {
 	if err != nil {
 		panic(err)
 	}
-
-	q, err := ch.QueueDeclare(
-		"sentence_queue", // name
-		false,            // durable
-		false,            // delete when unused
-		false,            // exclusive
-		false,            // no-wait
-		nil,              // arguments
-	)
-	if err != nil {
-		log.Panicf("%s: %s", "Failed to declare a queue", err)
-	}
-
-	//放進queue
-	err = ch.Publish(
-		"",     // exchange
-		q.Name, // routing key
-		false,  // mandatory
-		false,  // immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        []byte(body1),
-		})
-	if err != nil {
-		log.Panicf("%s: %s", "Failed to publish a message", err)
-	}
+	rmq.Push(p.rmq, body1)
 	log.Printf(" [x] Sent %s\n", body1)
 
 	ctx.StatusCode(iris.StatusAccepted)
-	ctx.JSON(response{Msg: "Rmq Add Success", Code: 200})
+	ctx.JSON(response.Responser(200, "Add Success"))
 }

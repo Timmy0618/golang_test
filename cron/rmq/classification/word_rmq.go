@@ -1,13 +1,17 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"log"
 	"myapp/config"
 	wordModel "myapp/model/classification/word"
-	"myapp/pkg/gorm"
+	"myapp/pkg/redis"
+
 	"myapp/pkg/rmq"
 	"myapp/services/classification"
+	wordService "myapp/services/classification/word"
+	redisService "myapp/services/redis"
+	rmqServices "myapp/services/rmq"
 
 	"reflect"
 )
@@ -15,48 +19,30 @@ import (
 func main() {
 	config.Default()
 
-	conn := rmq.New()
-	db, _ := gorm.New()
+	rmq := rmq.New()
 
+	//redis連線
 	var wordList []wordModel.Word
-	result := db.Limit(10).Offset(0).Find(&wordList)
-	if result.Error != nil {
-		fmt.Println("List fail")
-		return
-	}
-	fmt.Println(wordList)
+	rdb := redis.Default()
 
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Panicf("%s: %s", "Failed to open a channel", err)
-	}
-	defer ch.Close()
-
-	q, err := ch.QueueDeclare(
-		"sentence_queue", // name
-		false,            // durable
-		false,            // delete when unused
-		false,            // exclusive
-		false,            // no-wait
-		nil,              // arguments
-	)
-	failOnError(err, "Failed to declare a queue")
-
-	msgs, err := ch.Consume(
-		q.Name, // queue
-		"",     // consumer
-		true,   // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	failOnError(err, "Failed to register a consumer")
+	//rmq
+	msgs := rmqServices.Pop(rmq)
 
 	var forever chan struct{}
 
 	go func() {
 		for d := range msgs {
+
+			//檢查wordList 有沒有被更新
+			if !redisService.Scan(rdb, "wordList") {
+				redisService.Set(rdb, "wordList", wordService.GetWordList())
+			}
+
+			err := json.Unmarshal(redisService.Get(rdb, "wordList"), &wordList)
+			if err != nil {
+				panic(err)
+			}
+
 			log.Printf("Received a message: %s", reflect.TypeOf(d.Body))
 			classification.Classify(d.Body, wordList)
 		}
@@ -64,10 +50,4 @@ func main() {
 
 	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
 	<-forever
-}
-
-func failOnError(err error, msg string) {
-	if err != nil {
-		log.Panicf("%s: %s", msg, err)
-	}
 }

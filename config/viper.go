@@ -7,7 +7,7 @@ import (
 )
 
 func Default() {
-	viper.SetConfigName("database")
+	viper.SetConfigName("env")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./config")
 	// viper.SetDefault("application.port", 8080)

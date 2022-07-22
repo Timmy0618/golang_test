@@ -11,6 +11,14 @@ services:
   #     - Database
   #   entrypoint: go run main.go
   #   restart: always
+  Redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass 1qaz2wsx
+    volumes:
+      - ./cache:/data
 
   rabbitmq:
     image: rabbitmq:latest
