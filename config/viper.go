@@ -9,7 +9,7 @@ import (
 func Default() {
 	viper.SetConfigName("env")
 	viper.SetConfigType("yaml")
-	viper.AddConfigPath("./config")
+	viper.AddConfigPath("$HOME/Code/golang/iris/myapp/config")
 	// viper.SetDefault("application.port", 8080)
 	err := viper.ReadInConfig()
 	if err != nil {
