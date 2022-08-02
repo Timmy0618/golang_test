@@ -59,7 +59,7 @@ func (p *word) Create(ctx iris.Context) {
 }
 
 func (p *word) List(ctx iris.Context) {
-	page, err := strconv.Atoi(ctx.Params().Get("page"))
+	page, err := strconv.Atoi(ctx.URLParam("page"))
 	if err != nil {
 		fmt.Println("Input fail")
 		ctx.JSON(response.Responser(500, "Input Fail"))
@@ -79,7 +79,26 @@ func (p *word) List(ctx iris.Context) {
 }
 
 func (p *word) Read(ctx iris.Context) {
+	id, err := strconv.ParseInt(ctx.Params().Get("id"), 10, 64)
 
+	if err != nil {
+		fmt.Println("Input fail")
+		ctx.JSON(response.Responser(500, "Input Fail"))
+		return
+	}
+
+	var w wordModel.Word
+	w.ID = id
+
+	result := p.db.Find(&w)
+	if result.Error != nil {
+		fmt.Println("Read fail")
+		ctx.StatusCode(iris.StatusBadGateway)
+		ctx.JSON(response.Responser(500, "Input fail"))
+		return
+	}
+	ctx.StatusCode(iris.StatusAccepted)
+	ctx.JSON(response.Responser(200, "Success", w))
 }
 
 func (p *word) Update(ctx iris.Context) {
@@ -171,4 +190,8 @@ func (p *word) RmqAdd(ctx iris.Context) {
 
 	ctx.StatusCode(iris.StatusAccepted)
 	ctx.JSON(response.Responser(200, "Add Success"))
+}
+
+func (p *word) Test(ctx iris.Context) {
+	ctx.JSON(response.Responser(200, "Success"))
 }

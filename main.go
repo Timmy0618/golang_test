@@ -9,11 +9,19 @@ import (
 	"myapp/router"
 	"myapp/router/classification/group"
 	"myapp/router/classification/word"
+	"path/filepath"
+	"runtime"
 
 	"myapp/pkg/gorm"
+
+	"github.com/spf13/viper"
 )
 
 func main() {
+	_, b, _, _ := runtime.Caller(0)
+	basePath := filepath.Dir(b)
+	viper.SetDefault("application.root", basePath)
+
 	//讀取config
 	config.Default()
 

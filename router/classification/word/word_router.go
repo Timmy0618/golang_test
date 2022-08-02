@@ -18,10 +18,12 @@ func GetRoute(route *iris.Application, db *gorm.DB, rmq *amqp.Connection, rdb *r
 
 		// GET: http://localhost:8080/words
 		wordAPI.Post("/", wordController.Create)
-		wordAPI.Get("/{page}", wordController.List)
+		wordAPI.Get("", wordController.List)
+		wordAPI.Get("/{id}", wordController.Read)
 		wordAPI.Patch("/{id}", wordController.Update)
 		wordAPI.Delete("/{id}", wordController.Delete)
 		wordAPI.Post("/rmq", wordController.RmqAdd)
+		wordAPI.Get("/test", wordController.Test)
 	}
 
 	return route
