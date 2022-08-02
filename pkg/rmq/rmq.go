@@ -5,10 +5,22 @@ import (
 	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/spf13/viper"
 )
 
 func New() *amqp.Connection {
-	conn, err := amqp.Dial("amqp://admin:admin@localhost:5672/")
+	const config string = "amqp://%s:%s@%s:%s/"
+
+	sources := fmt.Sprintf(config,
+		viper.GetString("rmq.USERNAME"),
+		viper.GetString("rmq.PASSWORD"),
+		viper.GetString("rmq.HOST"),
+		viper.GetString("rmq.PORT"),
+	)
+	// conn, err := amqp.Dial("amqp://admin:admin@localhost:5672/")
+	fmt.Println(sources)
+
+	conn, err := amqp.Dial(sources)
 	if err != nil {
 		log.Panicf("%s: %s", "Failed to connect to RabbitMQ", err)
 	}

@@ -3,6 +3,8 @@ package log
 import (
 	"os"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 func todayFilename() string {
@@ -11,8 +13,10 @@ func todayFilename() string {
 }
 
 func NewLogFile() *os.File {
+	basePath := viper.GetString("application.root")
+
 	filename := todayFilename()
-	f, err := os.OpenFile("./pkg/log/"+filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	f, err := os.OpenFile(basePath+"./pkg/log/"+filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		panic(err)
 	}
