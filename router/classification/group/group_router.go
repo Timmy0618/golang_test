@@ -16,7 +16,8 @@ func GetRoute(route *iris.Application, db *gorm.DB) *iris.Application {
 
 		// GET: http://localhost:8080/words
 		groupAPI.Post("", groupController.Create)
-		groupAPI.Get("/{page}", groupController.List)
+		groupAPI.Get("/{id}", groupController.Read)
+		groupAPI.Get("", groupController.List)
 		groupAPI.Patch("/{id}", groupController.Update)
 		groupAPI.Delete("/{id}", groupController.Delete)
 	}

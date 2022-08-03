@@ -41,18 +41,19 @@ func (p *word) Create(ctx iris.Context) {
 	if result.Error != nil {
 		fmt.Println("Create fail")
 		ctx.StatusCode(iris.StatusBadGateway)
-		ctx.JSON(response.Responser(500, "Create Fail"))
+		ctx.JSON(response.Responser(response.Response{Code: 500, Msg: "Create Fail"}))
 		ctx.StopWithProblem(iris.StatusBadGateway, iris.NewProblem().
 			Title("Word creation failure").DetailErr(err))
 		return
 	}
 
+	//刪除redis 暫存
 	if redisService.Scan(p.rdb, "wordList") {
 		redisService.Del(p.rdb, "wordList")
 	}
 
 	ctx.StatusCode(iris.StatusCreated)
-	ctx.JSON(response.Responser(200, "Created Success"))
+	ctx.JSON(response.Responser(response.Response{Code: 200, Msg: "Created Success"}))
 
 	line := fmt.Sprintf("%s input: %#v", ctx.Method(), w)
 	ctx.Application().Logger().Info(line)
@@ -62,7 +63,7 @@ func (p *word) List(ctx iris.Context) {
 	page, err := strconv.Atoi(ctx.URLParam("page"))
 	if err != nil {
 		fmt.Println("Input fail")
-		ctx.JSON(response.Responser(500, "Input Fail"))
+		ctx.JSON(response.Responser(response.Response{Code: 500, Msg: "Input Fail"}))
 		return
 	}
 
@@ -71,11 +72,11 @@ func (p *word) List(ctx iris.Context) {
 	if result.Error != nil {
 		fmt.Println("List fail")
 		ctx.StatusCode(iris.StatusBadGateway)
-		ctx.JSON(response.Responser(500, "Input fail"))
+		ctx.JSON(response.Responser(response.Response{Code: 500, Msg: "Input Fail"}))
 		return
 	}
 	ctx.StatusCode(iris.StatusAccepted)
-	ctx.JSON(response.Responser(200, "Success", w))
+	ctx.JSON(response.Responser(response.Response{Code: 200, Msg: "Success", Data: w}))
 }
 
 func (p *word) Read(ctx iris.Context) {
@@ -83,22 +84,23 @@ func (p *word) Read(ctx iris.Context) {
 
 	if err != nil {
 		fmt.Println("Input fail")
-		ctx.JSON(response.Responser(500, "Input Fail"))
+		ctx.JSON(response.Responser(response.Response{Code: 500, Msg: "Input Fail"}))
 		return
 	}
 
-	var w wordModel.Word
-	w.ID = id
+	w := wordModel.Word{
+		ID: id,
+	}
 
-	result := p.db.Find(&w)
+	result := p.db.First(&w)
 	if result.Error != nil {
 		fmt.Println("Read fail")
 		ctx.StatusCode(iris.StatusBadGateway)
-		ctx.JSON(response.Responser(500, "Input fail"))
+		ctx.JSON(response.Responser(response.Response{Code: 500, Msg: "Input Fail"}))
 		return
 	}
-	ctx.StatusCode(iris.StatusAccepted)
-	ctx.JSON(response.Responser(200, "Success", w))
+	ctx.StatusCode(iris.StatusOK)
+	ctx.JSON(response.Responser(response.Response{Code: 200, Msg: "Success", Data: w}))
 }
 
 func (p *word) Update(ctx iris.Context) {
@@ -106,20 +108,19 @@ func (p *word) Update(ctx iris.Context) {
 
 	if err != nil {
 		fmt.Println("Input fail")
-		ctx.JSON(response.Responser(500, "Input fail"))
+		ctx.JSON(response.Responser(response.Response{Code: 500, Msg: "Input Fail"}))
 		return
 	}
 
-	var w wordModel.Word
+	w := wordModel.Word{
+		ID: id,
+	}
 
 	if ctx.ReadJSON(&w) != nil {
 		ctx.StopWithProblem(iris.StatusBadRequest, iris.NewProblem().
 			Title("Input fail").DetailErr(err))
 		return
 	}
-
-	w.ID = id
-	fmt.Println(w)
 
 	result := p.db.
 		Model(&w).
@@ -128,18 +129,18 @@ func (p *word) Update(ctx iris.Context) {
 	if result.Error != nil {
 		fmt.Println("Update fail")
 		ctx.StatusCode(iris.StatusBadGateway)
-		ctx.JSON(response.Responser(500, "Update fail"))
+		ctx.JSON(response.Responser(response.Response{Code: 500, Msg: "Update fail"}))
 		return
 	}
 
 	if result.RowsAffected < 1 {
-		ctx.StatusCode(iris.StatusAccepted)
-		ctx.JSON(response.Responser(200, "Nothing Change"))
+		ctx.StatusCode(iris.StatusOK)
+		ctx.JSON(response.Responser(response.Response{Code: 200, Msg: "Nothing Change"}))
 		return
 	}
 
-	ctx.StatusCode(iris.StatusAccepted)
-	ctx.JSON(response.Responser(200, "Update Success"))
+	ctx.StatusCode(iris.StatusOK)
+	ctx.JSON(response.Responser(response.Response{Code: 200, Msg: "Update Success"}))
 }
 
 func (p *word) Delete(ctx iris.Context) {
@@ -147,26 +148,24 @@ func (p *word) Delete(ctx iris.Context) {
 
 	if err != nil {
 		fmt.Println("Input fail")
-		ctx.JSON(response.Responser(500, "Input fail"))
+		ctx.JSON(response.Responser(response.Response{Code: 500, Msg: "Input Fail"}))
 	}
 
-	var w wordModel.Word
+	w := wordModel.Word{
+		ID: id,
+	}
 
-	w.ID = id
-	fmt.Println(w)
-
-	result := p.db.
-		Delete(&w)
+	result := p.db.Delete(&w)
 
 	if result.Error != nil {
 		fmt.Println("Delete fail")
 		ctx.StatusCode(iris.StatusBadGateway)
-		ctx.JSON(response.Responser(500, "Input fail"))
+		ctx.JSON(response.Responser(response.Response{Code: 500, Msg: "Input Fail"}))
 		return
 	}
 
-	ctx.StatusCode(iris.StatusAccepted)
-	ctx.JSON(response.Responser(200, "Delete Success"))
+	ctx.StatusCode(iris.StatusOK)
+	ctx.JSON(response.Responser(response.Response{Code: 200, Msg: "Delete Success"}))
 }
 
 func (p *word) RmqAdd(ctx iris.Context) {
@@ -189,9 +188,9 @@ func (p *word) RmqAdd(ctx iris.Context) {
 	log.Printf(" [x] Sent %s\n", body1)
 
 	ctx.StatusCode(iris.StatusAccepted)
-	ctx.JSON(response.Responser(200, "Add Success"))
+	ctx.JSON(response.Responser(response.Response{Code: 200, Msg: "Add Success"}))
 }
 
 func (p *word) Test(ctx iris.Context) {
-	ctx.JSON(response.Responser(200, "Success"))
+	ctx.JSON(response.Responser(response.Response{Code: 200, Msg: "Success"}))
 }
