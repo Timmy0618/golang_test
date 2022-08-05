@@ -7,6 +7,7 @@ import (
 	wordModel "myapp/model/classification/word"
 	"myapp/pkg/redis"
 
+	"myapp/pkg/gorm"
 	"myapp/pkg/rmq"
 	"myapp/services/classification"
 	wordService "myapp/services/classification/word"
@@ -25,8 +26,18 @@ func main() {
 	var wordList []wordModel.Word
 	rdb := redis.Default()
 
+	//db連線
+	db, err := gorm.New()
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
 	//rmq
 	msgs := rmqServices.Pop(rmq)
+
+	classification := classification.New(db)
+	wordService := wordService.New(db)
 
 	var forever chan struct{}
 
